@@ -61,6 +61,7 @@
 use strict;
 
 use Getopt::Long;
+use Time::Piece;
 
 # tunables
 my $fonttype = "Verdana";
@@ -77,7 +78,7 @@ my $max_lat;			# max latency to include
 my $units_lat = "";		# latency units (eg, "us")
 my $units_time;			# time units (eg, "us")
 my $timefactor = 1;		# divisor for time column
-my $limit_col = 10000;		# max permitted columns
+my $limit_col = 86400;		# max permitted columns
 my $debugmsg = 0;		# print debug messages
 my $grid = 0;			# draw grid lines
 
@@ -209,6 +210,7 @@ my @lines = <>;
 shift @lines if $lines[0] =~ m/[a-zA-Z]/;	# remove header
 my ($start_time, $rest) = split ' ', $lines[0];
 my $end_time = $start_time;
+my $tpstart_time = Time::Piece->strptime($start_time, "%s");
 my $largest_latency = 0;
 foreach my $line (@lines) {
 	my ($time, $latency) = split ' ', $line;
@@ -259,7 +261,7 @@ my $inc = <<INC;
 <![CDATA[
 	var details;
 	function init(evt) { details = document.getElementById("details").firstChild; }
-	function s(s, l, c) { details.nodeValue = "time " + s + "s, range " + l + ", count: " + c; }
+	function s(s, l, c) { details.nodeValue = "time " + s + ", range " + l + ", count: " + c; }
 	function c() { details.nodeValue = ' '; }
 ]]>
 </script>
@@ -288,7 +290,8 @@ if ($grid) {
 	for (my $s = 0; $s < $largest_col; $s += 10) {
 		my $x = $xpad + $s * $boxsize;
 		$im->line($x, $ybot, $x, $ytop, $grey);
-		my $slabel = ($s * $step_sec) . "s";
+		my $ts = $tpstart_time + ($s * $step_sec);
+		my $slabel = $ts->hour .":". $ts->min;
 		$im->stringTTF($dgrey, $fonttype, $fontsize, 0.0, $x, $ybot + $fontsize, $slabel);
 	}
 }
@@ -307,8 +310,8 @@ for (my $s = 0; $s < $largest_col; $s++) {
 		my $y2 = $y1 + $boxsize;
 		my $lr = ($min_lat + $l * $step_lat) . "-" .
 		    ($min_lat + (($l + 1) * $step_lat)) . $units_lat;
-		my $tr = $s * $step_sec;
-		$tr .= "-" . ($s * $step_sec - 1 + $step_sec) if $step_sec > 1;
+		my $ts = $tpstart_time + ($s * $step_sec);
+		my $tr = $ts->ymd ." ". $ts->hour .":". $ts->min;
 		$im->filledRectangle($x1, $y1, $x2, $y2, $color,
 		    'onmouseover="s(' . "'$tr','$lr',$c" . ')" onmouseout="c()"');
 	}
